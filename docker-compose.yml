@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: intervai-postgres
+    environment:
+      POSTGRES_DB: intervai
+      POSTGRES_USER: intervai
+      POSTGRES_PASSWORD: intervai_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
