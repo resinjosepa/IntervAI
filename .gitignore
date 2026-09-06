@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+
 *.py[codz]
 *$py.class
 
@@ -216,3 +217,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# IntervAI local environment
+.venv/
+__pycache__/
+*.pyc
+.env
