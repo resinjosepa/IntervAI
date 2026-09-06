@@ -1,7 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
+from app.models import Interview, Question, Answer
+from app.models.base import Base
 
 class Settings(BaseSettings):
     database_url: str
@@ -18,3 +19,5 @@ SessionLocal = sessionmaker(
     autoflush=False,
     autocommit=False,
 )
+
+Base.metadata.create_all(bind=engine)
