@@ -1,83 +1,171 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import json
 
-from schemas import (
-    QuestionRequest,
-    QuestionResponse,
-    EvaluationRequest,
-    EvaluationResponse,
-    FinalReportRequest,
-    FinalReportResponse
-)
-
-from ai_service import (
-    generate_question,
-    evaluate_answer,
-    generate_final_report
-)
+from dotenv import load_dotenv
+from google import genai
 
 
-app = FastAPI(
-    title="IntervAI - AI Interview Engine",
-    description="AI-powered interview question generation, answer evaluation, and final reporting",
-    version="1.0.0"
-)
+# Load environment variables from .env
+load_dotenv()
+
+api_key = os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    raise RuntimeError("GEMINI_API_KEY is not set")
 
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Initialize Gemini client
+client = genai.Client(api_key=api_key)
 
 
-@app.get("/")
-def home():
+MODEL_NAME = "gemini-3.6-flash"
+
+
+def generate_question(
+    role: str,
+    difficulty: str,
+    question_number: int
+):
+    """
+    Generate one interview question based on
+    candidate role and difficulty.
+    """
+
+    prompt = f"""
+You are an expert technical interviewer.
+
+Generate interview question number {question_number}.
+
+Candidate role: {role}
+Difficulty: {difficulty}
+
+Requirements:
+- Ask exactly ONE interview question.
+- Make it relevant to the candidate's role.
+- Match the requested difficulty.
+- Do not provide the answer.
+- Keep the question clear and suitable for an interview.
+"""
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt
+    )
+
+    question = response.text.strip()
+
     return {
-        "message": "IntervAI AI Interview Engine is running"
+        "question": question,
+        "topic": "Technical Interview",
+        "difficulty": difficulty
     }
 
 
-@app.post(
-    "/api/ai/generate-question",
-    response_model=QuestionResponse
-)
-def create_question(request: QuestionRequest):
+def evaluate_answer(
+    question: str,
+    answer: str
+):
+    """
+    Evaluate the candidate's answer.
+    """
 
-    result = generate_question(
-        request.role,
-        request.difficulty,
-        request.question_number
+    prompt = f"""
+You are an expert technical interviewer.
+
+Evaluate the candidate's answer to the interview question.
+
+Interview Question:
+{question}
+
+Candidate Answer:
+{answer}
+
+Evaluate the answer and return ONLY valid JSON.
+
+Use this exact format:
+
+{{
+    "score": 0,
+    "technical_accuracy": 0,
+    "clarity": 0,
+    "feedback": "Detailed feedback about the answer",
+    "strengths": [
+        "Strength 1",
+        "Strength 2"
+    ],
+    "improvements": [
+        "Improvement 1",
+        "Improvement 2"
+    ]
+}}
+
+Scoring rules:
+- score: overall answer quality from 1 to 10
+- technical_accuracy: technical correctness from 1 to 10
+- clarity: how clearly the candidate explained the answer from 1 to 10
+- Give honest scores based on the candidate's actual answer.
+- Do not automatically give high scores.
+- strengths must contain exactly 2 points.
+- improvements must contain exactly 2 points.
+"""
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt
     )
+
+    result = json.loads(response.text)
 
     return result
 
 
-@app.post(
-    "/api/ai/evaluate-answer",
-    response_model=EvaluationResponse
-)
-def evaluate(request: EvaluationRequest):
+def generate_final_report(evaluations):
+    """
+    Generate the final interview performance report.
+    """
 
-    result = evaluate_answer(
-        request.question,
-        request.answer
+    prompt = f"""
+You are an expert technical interviewer.
+
+Analyze the candidate's interview evaluations below and
+generate a final interview report.
+
+Evaluations:
+{evaluations}
+
+Return ONLY valid JSON using this exact format:
+
+{{
+    "overall_score": 0,
+    "summary": "Overall summary of the candidate's performance",
+    "strengths": [
+        "Strength 1",
+        "Strength 2"
+    ],
+    "weaknesses": [
+        "Weakness 1",
+        "Weakness 2"
+    ],
+    "recommendations": [
+        "Recommendation 1",
+        "Recommendation 2"
+    ]
+}}
+
+Rules:
+- overall_score must be from 1 to 10.
+- Calculate the overall score based on the interview evaluations.
+- strengths must contain exactly 2 points.
+- weaknesses must contain exactly 2 points.
+- recommendations must contain exactly 2 points.
+- Give honest feedback based on the evaluations.
+"""
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt
     )
 
-    return result
-
-
-@app.post(
-    "/api/ai/final-report",
-    response_model=FinalReportResponse
-)
-def final_report(request: FinalReportRequest):
-
-    result = generate_final_report(
-        request.evaluations
-    )
+    result = json.loads(response.text)
 
     return result
