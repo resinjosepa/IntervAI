@@ -17,10 +17,21 @@ services:
     container_name: intervai-backend
     environment:
       DATABASE_URL: postgresql+psycopg://intervai:intervai_dev_password@postgres:5432/intervai
+      AI_ENGINE_URL: http://ai-engine:8000
     ports:
       - "8000:8000"
     depends_on:
       - postgres
+      - ai-engine
+
+  ai-engine:
+    build:
+      context: ./ai-engine
+    container_name: intervai-ai-engine
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "8001:8000"
 
 volumes:
   postgres_data:
